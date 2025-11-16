@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VoyageFlow — Interactive Travel Experience Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .page { display: none; padding: 2rem; min-height: 80vh; }
+    .page.active { display: block; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:50; }
+    .modal { background:white; padding:1.5rem; border-radius:0.5rem; box-shadow:0 10px 30px rgba(0,0,0,0.2); max-width:90%; width:480px; }
+    .sticky-top { position: sticky; top:0; z-index:40; backdrop-filter: blur(6px); }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.95), #fff); padding:1rem; border-radius:0.75rem; box-shadow:0 6px 18px rgba(0,0,0,0.04); }
+    /* Blog hover effect + clickable card */
+    .blog-card { overflow: hidden; transition: transform .25s ease, box-shadow .25s ease; border-radius:0.75rem; cursor: pointer; display:flex; flex-direction:column; }
+    .blog-card:hover { transform: scale(1.02); box-shadow: 0 18px 40px rgba(2,6,23,0.12); }
+    .blog-image { width:100%; height:220px; object-fit:cover; display:block; border-radius:0.5rem 0.5rem 0 0; }
+    .tabs { display:flex; gap:0.5rem; background:#f8fafc; padding:0.25rem; border-radius:999px; }
+    .tab { padding:0.5rem 0.9rem; border-radius:999px; cursor:pointer; }
+    .tab.active { background:white; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+    /* Blog detail */
+    .blog-detail-image {
+      width: 100%;
+      height: 240px;          /* reduced */
+      object-fit: cover;
+      border-radius: 0.75rem; 
+      box-shadow: 0 4px 18px rgba(0,0,0,0.12); /* subtle */
+    }
+    .blog-article { max-width:900px; margin: 1.25rem auto 0; }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+  <!-- Minimal header: logo + logout -->
+  <header class="sticky-top bg-white/80 border-b border-slate-200">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-4 p-4">
+      <div class="flex items-center gap-3">
+        <div class="text-2xl font-bold text-indigo-700">VoyageFlow</div>
+        <div class="text-sm text-slate-500">Simulated travel experience</div>
+      </div>
+      <div>
+        <nav class="flex items-center gap-4">
+            <button id="bookingBtn" class="text-sm text-indigo-700 hover:underline hidden" onclick="openBookingPage()">Booking</button>
+            <span id="welcomeTxt" class="text-sm text-slate-600 mr-2"></span>
+            <button id="logoutBtn" class="px-3 py-1 rounded border hidden" onclick="startOver()">Logout</button>
+        </nav>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto mt-6">
+
+    <!-- Page 1: Unified Register / Login -->
+    <section id="page1" class="page active">
+      <div class="card max-w-3xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-2xl font-semibold">Create / Login to VoyageFlow</h2>
+            <p class="text-sm text-slate-600">Choose Register or Login below — both are available right here.</p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="auth tabs">
+            <div id="tab-register" class="tab active" role="tab" onclick="switchAuthTab('register')">Register</div>
+            <div id="tab-login" class="tab" role="tab" onclick="switchAuthTab('login')">Login</div>
+          </div>
+        </div>
+
+        <!-- Register form -->
+        <form id="registerForm" class="space-y-4" onsubmit="handleRegister(event)">
+          <div>
+            <label class="block text-sm font-medium">Full name</label>
+            <input id="name" class="w-full mt-1 p-3 border rounded bg-slate-50" required />
+            <p id="err-name" class="text-xs text-red-600 mt-1 hidden"></p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium">Email</label>
+            <input id="email" class="w-full mt-1 p-3 border rounded bg-slate-50" required />
+            <p id="err-email" class="text-xs text-red-600 mt-1 hidden"></p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium">Phone (10 digits)</label>
+              <input id="phone" class="w-full mt-1 p-3 border rounded bg-white" inputmode="numeric" />
+              <p id="err-phone" class="text-xs text-red-600 mt-1 hidden"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">PIN Code (6 digits)</label>
+              <input id="pincode" class="w-full mt-1 p-3 border rounded bg-slate-50" inputmode="numeric" />
+              <p id="err-pincode" class="text-xs text-red-600 mt-1 hidden"></p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium">Password</label>
+            <input id="password" type="password" class="w-full mt-1 p-3 border rounded bg-white" />
+            <p id="err-password" class="text-xs text-red-600 mt-1 hidden"></p>
+          </div>
+
+          <div class="flex gap-2">
+            <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded">Register</button>
+            <button type="button" class="px-4 py-2 rounded border" onclick="resetForm()">Reset</button>
+            <button type="button" class="px-4 py-2 rounded border" onclick="switchAuthTab('login')">Go to Login</button>
+          </div>
+        </form>
+
+        <!-- Login form (hidden initially) -->
+        <form id="loginForm" class="space-y-4 hidden" onsubmit="handleLoginFromPage(event)">
+          <div>
+            <label class="block text-sm font-medium">Email</label>
+            <input id="loginEmail" class="w-full mt-1 p-3 border rounded bg-slate-50" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Password</label>
+            <input id="loginPassword" type="password" class="w-full mt-1 p-3 border rounded bg-white" required />
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded">Login</button>
+            <button type="button" class="px-4 py-2 rounded border" onclick="switchAuthTab('register')">Back to Register</button>
+          </div>
+        </form>
+
+        <p class="text-xs text-slate-500 mt-4">When you register or login, the backend issues a JWT and the frontend stores it in <code>localStorage</code> (simulated).</p>
+      </div>
+    </section>
+
+    <!-- Page 2: Travel Blog grid (click any card to open blog detail) -->
+    <section id="page2" class="page">
+      <div>
+        <div class="card mb-6">
+          <h2 class="text-2xl font-semibold">Explore Destinations</h2>
+          <p class="text-sm text-slate-600">Hover any card and click anywhere to open the full article. Use "Plan Trip" inside the article to build your itinerary.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Paris -->
+          <article class="blog-card card" onclick="openBlog('paris')" role="button" tabindex="0" onkeypress="if(event.key==='Enter') openBlog('paris')">
+            <img src="/assets/paris.png" alt="Paris" class="blog-image" onerror="this.style.display='none'">
+            <div class="p-6">
+              <h3 class="text-xl font-semibold mb-1">Paris — City of Light</h3>
+              <p class="text-sm text-slate-600 mb-3">Cafés, Seine-side walks, and art galore.</p>
+              <div class="text-sm text-slate-500">Currency: EUR (€)</div>
+            </div>
+          </article>
+
+          <!-- Tokyo -->
+          <article class="blog-card card" onclick="openBlog('tokyo')" role="button" tabindex="0" onkeypress="if(event.key==='Enter') openBlog('tokyo')">
+            <img src="/assets/tokyo.png" alt="Tokyo" class="blog-image" onerror="this.style.display='none'">
+            <div class="p-6">
+              <h3 class="text-xl font-semibold mb-1">Tokyo — Neon & Tradition</h3>
+              <p class="text-sm text-slate-600 mb-3">From Shibuya to serene shrines.</p>
+              <div class="text-sm text-slate-500">Currency: JPY (¥)</div>
+            </div>
+          </article>
+
+          <!-- Rome -->
+          <article class="blog-card card" onclick="openBlog('rome')" role="button" tabindex="0" onkeypress="if(event.key==='Enter') openBlog('rome')">
+            <img src="/assets/rome.png" alt="Rome" class="blog-image" onerror="this.style.display='none'">
+            <div class="p-6">
+              <h3 class="text-xl font-semibold mb-1">Rome — History Everywhere</h3>
+              <p class="text-sm text-slate-600 mb-3">Cobblestones, espresso, and ruins.</p>
+              <div class="text-sm text-slate-500">Currency: EUR (€)</div>
+            </div>
+          </article>
+
+          <!-- Bali -->
+          <article class="blog-card card" onclick="openBlog('bali')" role="button" tabindex="0" onkeypress="if(event.key==='Enter') openBlog('bali')">
+            <img src="/assets/bali.png" alt="Bali" class="blog-image" onerror="this.style.display='none'">
+            <div class="p-6">
+              <h3 class="text-xl font-semibold mb-1">Bali — Tropical Calm</h3>
+              <p class="text-sm text-slate-600 mb-3">Rice terraces, beaches, and surf.</p>
+              <div class="text-sm text-slate-500">Currency: IDR (Rp)</div>
+            </div>
+          </article>
+
+          <!-- Cape Town -->
+          <article class="blog-card card" onclick="openBlog('capetown')" role="button" tabindex="0" onkeypress="if(event.key==='Enter') openBlog('capetown')">
+            <img src="/assets/capetown.png" alt="Cape Town" class="blog-image" onerror="this.style.display='none'">
+            <div class="p-6">
+              <h3 class="text-xl font-semibold mb-1">Cape Town — Coastal Majesty</h3>
+              <p class="text-sm text-slate-600 mb-3">Table Mountain, beaches and local culture.</p>
+              <div class="text-sm text-slate-500">Currency: ZAR (R)</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Blog detail pages (simulated sub-pages inside SPA) -->
+    <section id="blog-paris" class="page">
+      <div>
+        <img src="/assets/paris.png" alt="Paris" class="blog-detail-image" onerror="this.style.display='none'">
+        <div class="blog-article card p-6 mt-6">
+          <h2 class="text-2xl font-semibold">Paris — City of Light</h2>
+          <p class="text-sm text-slate-600 mb-4">Paris has long been a magnet for lovers of art, food, and effortless street-side charm. Spend your days wandering from boutique cafés in Le Marais to the sunlit promenades along the Seine. Museums like the Louvre and Musée d'Orsay hold treasures that reward slow walks and patient attention, while neighborhood boulangeries offer perfectly flaky croissants to fuel explorations. Evening finds Parisians dining long into the night, savoring small plates and conversation. Add a trip to Montmartre for city views and a late-night crepe, and you’ve got a week of classic Parisian rhythms: art, pastry, and unhurried beauty.</p>
+          <div class="flex gap-3 mt-4">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" onclick="planTrip('paris')">Plan Trip →</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Destinations</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog-tokyo" class="page">
+      <div>
+        <img src="/assets/tokyo.png" alt="Tokyo" class="blog-detail-image" onerror="this.style.display='none'">
+        <div class="blog-article card p-6 mt-6">
+          <h2 class="text-2xl font-semibold">Tokyo — Neon & Tradition</h2>
+          <p class="text-sm text-slate-600 mb-4">Tokyo blends ultramodern energy with deep-rooted tradition. Start the morning at an ancient shrine, then slide into a quiet ramen shop for a steaming bowl of comfort. Afternoons in neighborhoods like Shinjuku and Harajuku reveal a kaleidoscope of fashion and pop culture; evenings sparkle in neon as restaurants and izakayas come alive. Don’t miss the calm of Meiji Shrine or the sensory overload of Tsukiji’s outer market. For a city that can feel overwhelming, Tokyo rewards curiosity: small alleys, family-run eateries, and seasonal festivals offer unexpected delights at every turn.</p>
+          <div class="flex gap-3 mt-4">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" onclick="planTrip('tokyo')">Plan Trip →</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Destinations</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog-rome" class="page">
+      <div>
+        <img src="/assets/rome.png" alt="Rome" class="blog-detail-image" onerror="this.style.display='none'">
+        <div class="blog-article card p-6 mt-6">
+          <h2 class="text-2xl font-semibold">Rome — History Everywhere</h2>
+          <p class="text-sm text-slate-600 mb-4">Rome wears its history on every street corner: ancient ruins sit beside bustling cafés and modern shops. Walk the cobbled lanes of the historic center to the Colosseum, then wander to the Vatican and its soaring dome. Food in Rome centers on simple, perfect techniques—thin-crusted pizza, al dente pasta, and fresh gelato. Spend afternoons in neighborhood piazzas, watch the world go by, and allow for slow dinners where the courses drift into late evening. Rome is best appreciated when you combine major sights with aimless wandering—each alley has a story.</p>
+          <div class="flex gap-3 mt-4">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" onclick="planTrip('rome')">Plan Trip →</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Destinations</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog-bali" class="page">
+      <div>
+        <img src="/assets/bali.png" alt="Bali" class="blog-detail-image" onerror="this.style.display='none'">
+        <div class="blog-article card p-6 mt-6">
+          <h2 class="text-2xl font-semibold">Bali — Tropical Calm</h2>
+          <p class="text-sm text-slate-600 mb-4">Bali is a mosaic of lush rice terraces, warm beaches, and a lively cultural life. From the surf breaks on the Bukit Peninsula to the serene temples of Ubud, Bali offers both activity and rest. Days might include yoga by sunrise, a scooter ride through villages, or a seafood dinner on the sand at sunset. Balinese hospitality and artistic crafts add a human touch: local markets brim with hand-carved goods and fragrant spices. With a relaxed pace and tropical backdrop, Bali is a destination for slowing down and savoring simple pleasures.</p>
+          <div class="flex gap-3 mt-4">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" onclick="planTrip('bali')">Plan Trip →</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Destinations</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog-capetown" class="page">
+      <div>
+        <img src="/assets/capetown.png" alt="Cape Town" class="blog-detail-image" onerror="this.style.display='none'">
+        <div class="blog-article card p-6 mt-6">
+          <h2 class="text-2xl font-semibold">Cape Town — Coastal Majesty</h2>
+          <p class="text-sm text-slate-600 mb-4">Cape Town sits between mountains and sea, making it a playground for outdoor lovers and culture seekers alike. Ride the cableway up Table Mountain for sweeping views, drive the scenic Chapman’s Peak, and explore coastal towns that serve freshly caught seafood. Wine country is a short trip away, where vineyards roll across the valleys. A blend of history, colorful neighborhoods, and dramatic landscapes makes Cape Town feel like an invitation to adventure and relaxation in equal measure.</p>
+          <div class="flex gap-3 mt-4">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" onclick="planTrip('capetown')">Plan Trip →</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Destinations</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 3: Itinerary & Price Calculator (unchanged; will be filled dynamically) -->
+    <section id="page3" class="page">
+      <div class="card p-6">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 id="itineraryTitle" class="text-2xl font-semibold mb-1">Trip Itinerary & Price Calculator</h2>
+            <p id="itinerarySubtitle" class="text-sm text-slate-600">Select options and see the total update in the destination currency.</p>
+          </div>
+          <div>
+            <div class="text-sm text-slate-500">Selected destination:</div>
+            <div id="destBadge" class="mt-1 px-3 py-1 rounded bg-slate-100 text-sm"></div>
+          </div>
+        </div>
+
+        <div id="itinerarySections" class="grid md:grid-cols-3 gap-4 mt-6"></div>
+
+        <div class="mt-6 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-slate-600">Total Price</p>
+            <div id="total" class="text-2xl font-bold">—</div>
+            <div id="exchangeInfo" class="text-xs text-slate-500 mt-1"></div>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 rounded border" onclick="clearSelections()">Clear</button>
+            <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="confirmSelections()">Confirm</button>
+            <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Blog</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 4: Confirmation -->
+    <section id="page4" class="page">
+      <div class="card p-6 text-center">
+        <h2 class="text-3xl font-semibold mb-2">Thank you — Booking Simulated!</h2>
+        <p id="summary" class="text-sm text-slate-600 mb-4">Your simulated booking summary will appear here.</p>
+        <div class="flex items-center justify-center gap-3">
+          <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Blog</button>
+          <button class="px-4 py-2 rounded bg-indigo-600 text-white" onclick="startOver()">Start Over</button>
+        </div>
+        <div class="mt-6 text-xs text-slate-500">This is a static simulation — no real payment or data saved on a server.</div>
+      </div>
+    </section>
+
+    <!-- Page 5: View Booking -->
+    <section id="page5" class="page">
+      <div class="card p-6 max-w-3xl mx-auto">
+        <h2 class="text-2xl font-semibold mb-2">Your Booking</h2>
+        <p id="bookingInfo" class="text-sm text-slate-600 mb-4">
+        Loading booking details...
+        </p>
+        <button class="px-4 py-2 rounded border" onclick="showPage('page2')">Back to Blog</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="modalRoot" style="display:none;"></div>
+
+<script>
+/* FRONTEND script (updated):
+   - Clicking a blog card opens a blog detail page
+   - Blog detail contains 100-200 word article + Plan Trip button
+   - Plan Trip loads itinerary and navigates to page3
+   - Uses existing itineraries (same as earlier)
+*/
+const API_PREFIX = 'https://voyageflow.onrender.com';
+
+const ITINERARIES = {
+  paris: { title: 'Paris — City of Light', code: 'paris', currency: { symbol: '€', code: 'EUR' },
+    travelOptions:[{id:'paris_flight_econ',name:'Economy Flight',price:120},{id:'paris_flight_business',name:'Business Flight',price:320},{id:'paris_train',name:'High-speed Train',price:60}],
+    foodPackages:[{id:'paris_local_food',name:'Bistro Meal',price:25},{id:'paris_gourmet',name:'Gourmet Dinner',price:90}],
+    activities:[{id:'paris_museum',name:'Louvre Visit',price:17},{id:'paris_seine',name:'Seine Cruise',price:15},{id:'paris_daytrip',name:'Versailles Day Trip',price:70}]
+  },
+  tokyo: { title: 'Tokyo — Neon & Tradition', code: 'tokyo', currency: { symbol: '¥', code: 'JPY' },
+    travelOptions:[{id:'tokyo_flight_econ',name:'Economy Flight',price:90000},{id:'tokyo_flight_business',name:'Business Flight',price:240000},{id:'tokyo_shinkansen',name:'Shinkansen pass',price:14000}],
+    foodPackages:[{id:'tokyo_local',name:'Sushi & Izakaya Night',price:3500},{id:'tokyo_gourmet',name:'Kaiseki Dinner',price:12000}],
+    activities:[{id:'tokyo_temple',name:'Senso-ji Tour',price:0},{id:'tokyo_citytour',name:'Shibuya + Meiji Walk',price:3000},{id:'tokyo_museum',name:'TeamLab Planets',price:3200}]
+  },
+  rome: { title: 'Rome — History Everywhere', code: 'rome', currency: { symbol: '€', code: 'EUR' },
+    travelOptions:[{id:'rome_flight_econ',name:'Economy Flight',price:110},{id:'rome_flight_business',name:'Business Flight',price:300},{id:'rome_train',name:'Intercity Train',price:55}],
+    foodPackages:[{id:'rome_pizza',name:'Authentic Pizza Night',price:18},{id:'rome_gourmet',name:'Fine Dining',price:80}],
+    activities:[{id:'rome_colosseum',name:'Colosseum Entry',price:16},{id:'rome_vatican',name:'Vatican Museums',price:25},{id:'rome_foodtour',name:'Trastevere Food Walk',price:45}]
+  },
+  bali: { title: 'Bali — Tropical Calm', code: 'bali', currency: { symbol: 'Rp', code: 'IDR' },
+    travelOptions:[{id:'bali_flight_econ',name:'Economy Flight',price:3500000},{id:'bali_flight_business',name:'Business Flight',price:9500000},{id:'bali_ferry',name:'Fast Ferry (local)',price:250000}],
+    foodPackages:[{id:'bali_local',name:'Warung Tasting',price:80000},{id:'bali_gourmet',name:'Resort Dinner',price:450000}],
+    activities:[{id:'bali_surf',name:'Surf Lesson',price:250000},{id:'bali_ubud',name:'Ubud Rice Terrace Tour',price:200000},{id:'bali_temple',name:'Temple Visit',price:50000}]
+  },
+  capetown: { title: 'Cape Town — Coastal Majesty', code: 'capetown', currency: { symbol: 'R', code: 'ZAR' },
+    travelOptions:[{id:'ct_flight_econ',name:'Economy Flight',price:4500},{id:'ct_flight_business',name:'Business Flight',price:12500},{id:'ct_bus',name:'Comfort Bus',price:800}],
+    foodPackages:[{id:'ct_local',name:'Seafood Tasting',price:220},{id:'ct_gourmet',name:'Wineland Dinner',price:820}],
+    activities:[{id:'ct_tablemount',name:'Table Mountain Cableway',price:380},{id:'ct_penguins',name:'Boulders Beach Penguins',price:160},{id:'ct_wine',name:'Winelands Half-day',price:950}]
+  }
+};
+
+let selectedDest = null;
+let currentCurrency = { symbol: '₹', code: 'INR' };
+
+/* Auth helpers (unchanged) */
+function switchAuthTab(tab) {
+  document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+}
+
+function showModal(title, htmlContent, autoCloseMs) {
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `<div class="modal-backdrop"><div class="modal"><h3 class="text-lg font-semibold mb-2">${title}</h3><div class="mb-4">${htmlContent}</div><div class="flex justify-end gap-2"><button id="modalCloseBtn" class="px-3 py-1 rounded border">Close</button></div></div></div>`;
+  root.style.display = 'block';
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  if (autoCloseMs) setTimeout(closeModal, autoCloseMs);
+}
+function closeModal() { const root = document.getElementById('modalRoot'); root.innerHTML=''; root.style.display='none'; }
+
+function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function isDigits(str, len) { return new RegExp('^\\d{' + len + '}$').test(str); }
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const pincode = document.getElementById('pincode').value.trim();
+  const password = document.getElementById('password').value;
+  ['err-name','err-email','err-phone','err-pincode','err-password'].forEach(id=>{const el=document.getElementById(id); if(el){el.classList.add('hidden');el.textContent='';}});
+  let ok=true;
+  if (name.length<2){document.getElementById('err-name').textContent='Enter a valid name.';document.getElementById('err-name').classList.remove('hidden');ok=false;}
+  if (!isValidEmail(email)){document.getElementById('err-email').textContent='Enter a valid email.';document.getElementById('err-email').classList.remove('hidden');ok=false;}
+  if (!isDigits(phone,10)){document.getElementById('err-phone').textContent='Phone must be exactly 10 digits.';document.getElementById('err-phone').classList.remove('hidden');ok=false;}
+  if (!isDigits(pincode,6)){document.getElementById('err-pincode').textContent='PIN code must be exactly 6 digits.';document.getElementById('err-pincode').classList.remove('hidden');ok=false;}
+  if (!password || password.length<4){document.getElementById('err-password').textContent='Password must be 4+ chars.';document.getElementById('err-password').classList.remove('hidden');ok=false;}
+  if (!ok) return;
+  try {
+    const res = await fetch(API_PREFIX + '/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,phone,pincode,password})});
+    const body = await res.json();
+    if (!res.ok) { showModal('Registration failed', `<p>${body.message||'Unknown error'}</p>`); return; }
+    localStorage.setItem('voyageflow_token', body.token);
+    updateHeaderUser(body.user.name);
+    showModal('Registered', `<p>Welcome, <strong>${body.user.name}</strong>. Token stored.</p><div class="mt-3"><button class="px-3 py-1 rounded border" onclick="gotoBlog()">Continue</button></div>`);
+  } catch(err){console.error(err);showModal('Error','<p>Network error</p>');}
+}
+
+async function handleLoginFromPage(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const res = await fetch(API_PREFIX + '/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const body = await res.json();
+    if (!res.ok) { showModal('Login failed', `<p>${body.message||'Invalid credentials'}</p>`); return; }
+    localStorage.setItem('voyageflow_token', body.token);
+    updateHeaderUser(body.user.name);
+    showModal('Logged in', `<p>Hello, <strong>${body.user.name}</strong>.</p>`, 1400);
+    switchAuthTab('register');
+  } catch(err){console.error(err);showModal('Error','<p>Network error</p>');}
+}
+
+function resetForm(){document.getElementById('registerForm').reset();document.getElementById('loginForm').reset();['err-name','err-email','err-phone','err-pincode','err-password'].forEach(id=>{const el=document.getElementById(id); if(el){el.classList.add('hidden');el.textContent='';}});}
+function updateHeaderUser(name){document.getElementById('welcomeTxt').textContent = name ? `Hi, ${name}` : ''; document.getElementById('logoutBtn').classList.toggle('hidden', !name); }
+function gotoBlog(){ closeModal(); showPage('page2'); }
+
+/* Blog navigation: open blog detail page */
+function openBlog(key) {
+  // hide all blog detail pages, then show the requested one
+  const ids = ['blog-paris','blog-tokyo','blog-rome','blog-bali','blog-capetown'];
+  ids.forEach(id => document.getElementById(id).classList.remove('active'));
+  const target = document.getElementById('blog-' + key);
+  if (target) target.classList.add('active');
+  // hide main grid
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  target.classList.add('active');
+}
+
+/* Itinerary & Price calculator (same logic as before) */
+function planTrip(destKey) {
+  const it = ITINERARIES[destKey];
+  if (!it) return;
+  selectedDest = it;
+  currentCurrency = it.currency;
+  showPage('page3');
+  loadItineraryIntoPage(it);
+  recalcTotal();
+}
+
+function loadItineraryIntoPage(it) {
+  document.getElementById('itineraryTitle').textContent = it.title + ' — Itinerary & Prices';
+  document.getElementById('itinerarySubtitle').textContent = `All prices shown in ${it.currency.code} (${it.currency.symbol}). Choose options to build your simulated booking.`;
+  document.getElementById('destBadge').textContent = it.title;
+  const container = document.getElementById('itinerarySections');
+  container.innerHTML = '';
+  const makeSection = (label, items) => {
+    const div = document.createElement('div');
+    div.className = 'p-4 border rounded';
+    let html = `<h4 class="font-semibold">${label}</h4>`;
+    items.forEach(item => {
+      html += `<label class="block mt-2"><input type="checkbox" class="option" data-price="${item.price}" data-id="${item.id}" /> ${escapeHtml(item.name)} — ${escapeHtml(formatPrice(item.price))}</label>`;
+    });
+    div.innerHTML = html;
+    return div;
+  };
+  container.appendChild(makeSection('Travel Options', it.travelOptions));
+  container.appendChild(makeSection('Food Packages', it.foodPackages));
+  container.appendChild(makeSection('Activities', it.activities));
+  container.querySelectorAll('.option').forEach(o => o.addEventListener('change', recalcTotal));
+  document.getElementById('total').textContent = `${it.currency.symbol}0`;
+  document.getElementById('exchangeInfo').textContent = '';
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function formatPrice(num) { return new Intl.NumberFormat('en-US').format(num); }
+
+function recalcTotal() {
+  const opts = document.querySelectorAll('.option');
+  let total = 0;
+  const selected = [];
+  opts.forEach(o => { if (o.checked) { const price = Number(o.getAttribute('data-price') || 0); total += price; selected.push(o.getAttribute('data-id') || o.parentElement.textContent.trim()); }});
+  if (selectedDest) {
+    document.getElementById('total').textContent = `${selectedDest.currency.symbol}${formatPrice(total)}`;
+    sessionStorage.setItem('voyageflow_selection_total', total);
+    sessionStorage.setItem('voyageflow_selection_currency', JSON.stringify(selectedDest.currency));
+    sessionStorage.setItem('voyageflow_selection_items', JSON.stringify(selected));
+  } else { document.getElementById('total').textContent = `—`; }
+}
+function clearSelections(){ document.querySelectorAll('.option').forEach(o=>o.checked=false); recalcTotal(); }
+
+function confirmSelections() {
+  const total = sessionStorage.getItem('voyageflow_selection_total') || 0;
+  const currency = JSON.parse(sessionStorage.getItem('voyageflow_selection_currency') || JSON.stringify(currentCurrency));
+  const items = JSON.parse(sessionStorage.getItem('voyageflow_selection_items') || '[]');
+  showModal('Confirm Booking', `<p>You selected <strong>${items.length}</strong> items. Total: <strong>${currency.symbol}${formatPrice(Number(total))}</strong></p><div class="mt-3 flex justify-end gap-2"><button class="px-3 py-1 rounded border" onclick="closeModal()">Cancel</button><button class="px-3 py-1 rounded bg-indigo-600 text-white" onclick="finalizeBooking()">Proceed</button></div>`);
+}
+function finalizeBooking() {
+  closeModal();
+  const total = sessionStorage.getItem('voyageflow_selection_total') || 0;
+  const currency = JSON.parse(sessionStorage.getItem('voyageflow_selection_currency') || JSON.stringify(currentCurrency));
+  const items = JSON.parse(sessionStorage.getItem('voyageflow_selection_items') || '[]');
+  localStorage.setItem('voyageflow_last_booking', JSON.stringify({ items, total, currency, destination: selectedDest ? selectedDest.code : null, when: new Date().toISOString() }));
+  showPage('page4');
+}
+function fillSummary() {
+  const token = localStorage.getItem('voyageflow_token');
+  const last = JSON.parse(localStorage.getItem('voyageflow_last_booking') || 'null');
+  const userInfoEl = document.getElementById('summary');
+  if (!last) { userInfoEl.innerHTML = 'No booking found. Please select options on the Price Calculator.'; return; }
+  let who = 'Guest';
+  if (token) { try { const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); who = payload.name || payload.email || 'Guest'; } catch(e){ who = 'Guest'; } }
+  userInfoEl.innerHTML = `<p>Hi <strong>${who}</strong> — your booking simulation is complete for <strong>${escapeHtml(last.destination || 'unknown')}</strong>.</p><p class="mt-2">Selected items: <strong>${last.items.length}</strong> — Total: <strong>${last.currency.symbol}${formatPrice(Number(last.total))}</strong></p><p class="mt-2 text-xs text-slate-500">Booking time: ${(new Date(last.when)).toLocaleString()}</p>`;
+}
+
+function startOver() {
+  localStorage.removeItem('voyageflow_token');
+  localStorage.removeItem('voyageflow_last_booking');
+  sessionStorage.removeItem('voyageflow_selection_items');
+  sessionStorage.removeItem('voyageflow_selection_total');
+  sessionStorage.removeItem('voyageflow_selection_currency');
+  clearSelections();
+  resetForm();
+  updateHeaderUser('');
+  showPage('page1');
+}
+
+function openBookingPage() {
+  const booking = JSON.parse(localStorage.getItem('voyageflow_last_booking') || 'null');
+
+  if (!booking) {
+    document.getElementById('bookingInfo').innerHTML =
+      `<p>No booking has been made yet.</p>`;
+  } else {
+    const { items, total, currency, destination, when } = booking;
+    document.getElementById('bookingInfo').innerHTML = `
+      <p><strong>Destination:</strong> ${destination}</p>
+      <p><strong>Total:</strong> ${currency.symbol}${formatPrice(total)}</p>
+      <p><strong>Items selected:</strong> ${items.length}</p>
+      <p class="mt-2 text-xs text-slate-500">Booked on ${new Date(when).toLocaleString()}</p>
+    `;
+  }
+
+  showPage('page5');
+}
+
+// Show "Booking" button only after login
+function updateHeaderUser(name) {
+  document.getElementById('welcomeTxt').textContent = name ? `Hi, ${name}` : '';
+  document.getElementById('logoutBtn').classList.toggle('hidden', !name);
+  document.getElementById('bookingBtn').classList.toggle('hidden', !name);
+}
+
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const page = document.getElementById(id);
+  if (page) page.classList.add('active');
+  if (id === 'page4') fillSummary();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const token = localStorage.getItem('voyageflow_token');
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      updateHeaderUser(payload.name || payload.email || 'User');
+    } catch (e) { /* ignore */ }
+  }
+});
+</script>
+
+</body>
+</html>
