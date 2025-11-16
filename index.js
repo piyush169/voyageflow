@@ -6,13 +6,13 @@ const cors = require('cors');
 
 
 
-app.use(express.static('public'));
 
 const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.static('public'));
 app.use(cors());
 app.use(express.json()); // parse JSON bodies
 
