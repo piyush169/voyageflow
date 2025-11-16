@@ -1,0 +1,21 @@
+{
+  "name": "voyageflow-hybrid",
+  "version": "1.0.0",
+  "description": "VoyageFlow — hybrid demo: Express JWT auth + static frontend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "author": "You",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
