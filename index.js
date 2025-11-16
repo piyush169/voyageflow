@@ -4,8 +4,9 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const cors = require('cors');
-app.use(cors());
 
+
+app.use(express.static('public'));
 
 const authRoutes = require('./routes/auth');
 
@@ -17,6 +18,11 @@ app.use(express.json()); // parse JSON bodies
 
 // API routes
 app.use('/api/auth', authRoutes);
+
+app.get('*', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 
 // Serve static frontend
 const publicPath = path.join(__dirname, 'public');
